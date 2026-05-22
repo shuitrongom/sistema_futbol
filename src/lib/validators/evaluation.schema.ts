@@ -1,7 +1,7 @@
 import { z } from "zod/v4";
 
 const rating = z.number().int().min(1, "Mínimo 1").max(10, "Máximo 10");
-const optionalRating = rating.optional().nullable();
+const _optionalRating = rating.optional().nullable();
 
 // Position-specific metric schemas
 const goalkeeperMetrics = z.object({

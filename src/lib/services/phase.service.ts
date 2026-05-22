@@ -159,7 +159,7 @@ export async function advanceTeamsToNextPhase(
 
   // Create matches for the next phase (pair teams sequentially)
   const matches = [];
-  const tournament = currentPhase.tournament;
+  const _tournament = currentPhase.tournament;
   const baseDate = new Date();
   baseDate.setDate(baseDate.getDate() + 1);
 

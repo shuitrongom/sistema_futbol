@@ -1,5 +1,4 @@
 import prisma from "@/lib/prisma";
-import type { TournamentFormat } from "@prisma/client";
 
 export interface GeneratedMatch {
   homeTeamId: string;

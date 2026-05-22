@@ -1,7 +1,6 @@
 import prisma from "@/lib/prisma";
 import { Resend } from "resend";
 import {
-  matchReminderTemplate,
   matchResultTemplate,
   progressReportTemplate,
   taskAssignedTemplate,
@@ -375,11 +374,11 @@ export async function notifyMatchResult(matchId: string) {
     const score = `${match.homeTeam.name} ${match.homeScore ?? 0} - ${match.awayScore ?? 0} ${match.awayTeam.name}`;
 
     const teams = [
-      { team: match.homeTeam, isHome: true },
-      { team: match.awayTeam, isHome: false },
+      { team: match.homeTeam, _isHome: true },
+      { team: match.awayTeam, _isHome: false },
     ];
 
-    for (const { team, isHome } of teams) {
+    for (const { team } of teams) {
       if (!(await isInfantileTeam(team.id))) continue;
 
       for (const tp of team.teamPlayers) {
