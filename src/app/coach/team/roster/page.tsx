@@ -28,7 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { User, Plus, UserMinus, Search, Camera, Loader2, X } from "lucide-react";
+import { User, Plus, UserMinus, Search, Camera, Loader2, X, UserPlus } from "lucide-react";
 
 const positionLabels: Record<string, string> = {
   goalkeeper: "Portero",
@@ -87,6 +87,17 @@ export default function RosterPage() {
   const [uploadingPlayerId, setUploadingPlayerId] = useState<string | null>(null);
   const playerPhotoInputRef = useRef<HTMLInputElement>(null);
   const activePlayerIdRef = useRef<string | null>(null);
+
+  // New player form state
+  const [createMode, setCreateMode] = useState(false);
+  const [newPlayer, setNewPlayer] = useState({
+    fullName: "",
+    birthDate: "",
+    idNumber: "",
+    position: "",
+    phone: "",
+    email: "",
+  });
 
   const handlePlayerPhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -207,6 +218,63 @@ export default function RosterPage() {
     }
   };
 
+  const handleCreateAndAdd = async () => {
+    if (!teamId || !jerseyNumber) {
+      setError("Completa todos los campos obligatorios");
+      return;
+    }
+    if (!newPlayer.fullName || !newPlayer.birthDate || !newPlayer.idNumber || !newPlayer.position) {
+      setError("Nombre, fecha de nacimiento, identificación y posición son obligatorios");
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      // 1. Create the player
+      const createRes = await fetch("/api/players", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fullName: newPlayer.fullName,
+          birthDate: newPlayer.birthDate,
+          idNumber: newPlayer.idNumber,
+          position: newPlayer.position,
+          phone: newPlayer.phone || null,
+          email: newPlayer.email || null,
+        }),
+      });
+      if (!createRes.ok) {
+        const data = await createRes.json();
+        setError(data.error ?? "Error al crear jugador");
+        return;
+      }
+      const createdPlayer = await createRes.json();
+
+      // 2. Add to team
+      const addRes = await fetch(`/api/teams/${teamId}/players`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ playerId: createdPlayer.id, jerseyNumber: parseInt(jerseyNumber) }),
+      });
+      if (!addRes.ok) {
+        const data = await addRes.json();
+        setError(data.error ?? "Error al agregar jugador al equipo");
+        return;
+      }
+
+      setDialogOpen(false);
+      setSelectedPlayerId("");
+      setJerseyNumber("");
+      setNewPlayer({ fullName: "", birthDate: "", idNumber: "", position: "", phone: "", email: "" });
+      setCreateMode(false);
+      await Promise.all([fetchRoster(), fetchAllPlayers()]);
+    } catch {
+      setError("Error de conexión");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleRemove = async (playerId: string, playerName: string) => {
     if (!teamId) return;
     if (!confirm(`¿Remover a ${playerName} del equipo?`)) return;
@@ -256,45 +324,154 @@ export default function RosterPage() {
               Agregar Jugador
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Agregar Jugador al Equipo</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               {error && <p className="text-sm text-red-500 bg-red-50 p-2 rounded">{error}</p>}
-              <div>
-                <Label>Jugador</Label>
-                <Select value={selectedPlayerId} onValueChange={setSelectedPlayerId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar jugador..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availablePlayers.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.fullName} — {positionLabels[p.position] || p.position}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="jersey">Número de Camiseta</Label>
-                <Input
-                  id="jersey"
-                  type="number"
-                  min={1}
-                  max={99}
-                  value={jerseyNumber}
-                  onChange={(e) => setJerseyNumber(e.target.value)}
-                  placeholder="Ej: 10"
-                />
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-                <Button onClick={handleAdd} disabled={saving}>
-                  {saving ? "Agregando..." : "Agregar"}
+
+              {/* Toggle between modes */}
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant={!createMode ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => { setCreateMode(false); setError(null); }}
+                  className="flex-1"
+                >
+                  Jugador Existente
+                </Button>
+                <Button
+                  type="button"
+                  variant={createMode ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => { setCreateMode(true); setError(null); }}
+                  className="flex-1"
+                >
+                  <UserPlus className="size-4 mr-1" />
+                  Crear Nuevo
                 </Button>
               </div>
+
+              {!createMode ? (
+                <>
+                  <div>
+                    <Label>Jugador</Label>
+                    <Select value={selectedPlayerId} onValueChange={setSelectedPlayerId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar jugador..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availablePlayers.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.fullName} — {positionLabels[p.position] || p.position}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="jersey">Número de Camiseta</Label>
+                    <Input
+                      id="jersey"
+                      type="number"
+                      min={1}
+                      max={99}
+                      value={jerseyNumber}
+                      onChange={(e) => setJerseyNumber(e.target.value)}
+                      placeholder="Ej: 10"
+                    />
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
+                    <Button onClick={handleAdd} disabled={saving}>
+                      {saving ? "Agregando..." : "Agregar"}
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <Label>Nombre Completo *</Label>
+                    <Input
+                      value={newPlayer.fullName}
+                      onChange={(e) => setNewPlayer({ ...newPlayer, fullName: e.target.value })}
+                      placeholder="Nombre del jugador"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label>Fecha de Nacimiento *</Label>
+                      <Input
+                        type="date"
+                        value={newPlayer.birthDate}
+                        onChange={(e) => setNewPlayer({ ...newPlayer, birthDate: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <Label>No. Identificación *</Label>
+                      <Input
+                        value={newPlayer.idNumber}
+                        onChange={(e) => setNewPlayer({ ...newPlayer, idNumber: e.target.value })}
+                        placeholder="CURP, INE, etc."
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label>Posición *</Label>
+                      <Select value={newPlayer.position} onValueChange={(v) => setNewPlayer({ ...newPlayer, position: v })}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleccionar..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="goalkeeper">Portero</SelectItem>
+                          <SelectItem value="defender">Defensa</SelectItem>
+                          <SelectItem value="midfielder">Mediocampista</SelectItem>
+                          <SelectItem value="forward">Delantero</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>No. Camiseta *</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={99}
+                        value={jerseyNumber}
+                        onChange={(e) => setJerseyNumber(e.target.value)}
+                        placeholder="Ej: 10"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label>Teléfono</Label>
+                      <Input
+                        value={newPlayer.phone}
+                        onChange={(e) => setNewPlayer({ ...newPlayer, phone: e.target.value })}
+                        placeholder="Opcional"
+                      />
+                    </div>
+                    <div>
+                      <Label>Email</Label>
+                      <Input
+                        type="email"
+                        value={newPlayer.email}
+                        onChange={(e) => setNewPlayer({ ...newPlayer, email: e.target.value })}
+                        placeholder="Opcional"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
+                    <Button onClick={handleCreateAndAdd} disabled={saving}>
+                      {saving ? "Creando..." : "Crear y Agregar"}
+                    </Button>
+                  </div>
+                </>
+              )}
             </div>
           </DialogContent>
         </Dialog>
