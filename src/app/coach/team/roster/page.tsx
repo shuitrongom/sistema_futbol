@@ -90,6 +90,9 @@ export default function RosterPage() {
 
   // New player form state
   const [createMode, setCreateMode] = useState(false);
+  const [newPlayerPhoto, setNewPlayerPhoto] = useState<File | null>(null);
+  const [newPlayerPhotoPreview, setNewPlayerPhotoPreview] = useState<string | null>(null);
+  const newPlayerPhotoInputRef = useRef<HTMLInputElement>(null);
   const [newPlayer, setNewPlayer] = useState({
     fullName: "",
     birthDate: "",
@@ -230,7 +233,20 @@ export default function RosterPage() {
     setSaving(true);
     setError(null);
     try {
-      // 1. Create the player
+      // 1. Upload photo if selected
+      let photoUrl: string | null = null;
+      if (newPlayerPhoto) {
+        const formData = new FormData();
+        formData.append("file", newPlayerPhoto);
+        formData.append("folder", "players");
+        const uploadRes = await fetch("/api/upload", { method: "POST", body: formData });
+        if (uploadRes.ok) {
+          const uploadData = await uploadRes.json();
+          photoUrl = uploadData.url;
+        }
+      }
+
+      // 2. Create the player
       const createRes = await fetch("/api/players", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -241,6 +257,7 @@ export default function RosterPage() {
           position: newPlayer.position,
           phone: newPlayer.phone || null,
           email: newPlayer.email || null,
+          photoUrl,
         }),
       });
       if (!createRes.ok) {
@@ -250,7 +267,7 @@ export default function RosterPage() {
       }
       const createdPlayer = await createRes.json();
 
-      // 2. Add to team
+      // 3. Add to team
       const addRes = await fetch(`/api/teams/${teamId}/players`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -266,6 +283,8 @@ export default function RosterPage() {
       setSelectedPlayerId("");
       setJerseyNumber("");
       setNewPlayer({ fullName: "", birthDate: "", idNumber: "", position: "", phone: "", email: "" });
+      setNewPlayerPhoto(null);
+      setNewPlayerPhotoPreview(null);
       setCreateMode(false);
       await Promise.all([fetchRoster(), fetchAllPlayers()]);
     } catch {
@@ -392,6 +411,50 @@ export default function RosterPage() {
                 </>
               ) : (
                 <>
+                  {/* Photo upload */}
+                  <div className="flex flex-col items-center gap-2">
+                    <div
+                      className="size-20 rounded-full bg-muted flex items-center justify-center overflow-hidden border-2 border-dashed border-muted-foreground/30 cursor-pointer hover:border-primary/50 transition-colors"
+                      onClick={() => newPlayerPhotoInputRef.current?.click()}
+                    >
+                      {newPlayerPhotoPreview ? (
+                        <img src={newPlayerPhotoPreview} alt="Preview" className="size-full object-cover" />
+                      ) : (
+                        <Camera className="size-6 text-muted-foreground" />
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => newPlayerPhotoInputRef.current?.click()}
+                      className="text-xs text-primary hover:underline"
+                    >
+                      {newPlayerPhotoPreview ? "Cambiar foto" : "Agregar foto"}
+                    </button>
+                    {newPlayerPhotoPreview && (
+                      <button
+                        type="button"
+                        onClick={() => { setNewPlayerPhoto(null); setNewPlayerPhotoPreview(null); }}
+                        className="text-xs text-red-500 hover:underline"
+                      >
+                        Quitar foto
+                      </button>
+                    )}
+                    <input
+                      ref={newPlayerPhotoInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        if (file.size > 5 * 1024 * 1024) { setError("La imagen no debe superar 5MB"); return; }
+                        setNewPlayerPhoto(file);
+                        setNewPlayerPhotoPreview(URL.createObjectURL(file));
+                        e.target.value = "";
+                      }}
+                    />
+                  </div>
+
                   <div>
                     <Label>Nombre Completo *</Label>
                     <Input
