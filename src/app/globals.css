@@ -2,26 +2,68 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    /* Dark theme as default — matches #0d1117 / #1a1f36 design */
+    --background: 216 28% 7%;
+    --foreground: 0 0% 95%;
+
+    --card: 225 25% 15%;
+    --card-foreground: 0 0% 95%;
+
+    --popover: 225 25% 15%;
+    --popover-foreground: 0 0% 95%;
+
+    --primary: 72 64% 51%;
+    --primary-foreground: 225 25% 15%;
+
+    --secondary: 225 20% 20%;
+    --secondary-foreground: 0 0% 80%;
+
+    --muted: 225 20% 18%;
+    --muted-foreground: 220 10% 55%;
+
+    --accent: 72 64% 51%;
+    --accent-foreground: 225 25% 15%;
+
+    --destructive: 4 80% 53%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 20% 20%;
+    --input: 220 20% 20%;
+    --ring: 72 64% 51%;
+
+    --radius: 0.75rem;
+
+    --chart-1: 72 64% 51%;
+    --chart-2: 145 50% 35%;
+    --chart-3: 4 80% 53%;
+    --chart-4: 220 60% 50%;
+    --chart-5: 43 60% 52%;
   }
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
+/* Custom animations */
+@keyframes gradientSlide {
+  0% { background-position: 0% 0%; }
+  100% { background-position: 200% 0%; }
+}
+
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }

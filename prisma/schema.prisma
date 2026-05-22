@@ -1,0 +1,793 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ==================== ENUMS ====================
+
+enum UserRole {
+  admin
+  coach
+  parent
+  player
+}
+
+enum TournamentFormat {
+  league              // Liga (todos contra todos, ida y vuelta) - Ej: Liga MX fase regular
+  knockout            // Eliminación directa - Ej: Copa MX
+  group_knockout      // Fase de grupos + eliminatorias - Ej: Champions League clásica
+  double_knockout     // Doble eliminación (bracket ganadores/perdedores)
+  swiss               // Sistema suizo (rondas fijas, emparejamiento por puntos) - Ej: Champions League 2024+
+  league_playoff      // Liga regular + liguilla/playoff - Ej: Liga MX (Apertura/Clausura)
+  league_single       // Liga solo ida (una vuelta) - Ej: Torneos cortos fútbol 7
+  cup                 // Copa con rondas (ida y vuelta en eliminatorias) - Ej: Copa Libertadores
+  round_robin_groups  // Múltiples grupos round-robin sin eliminatorias (solo tabla final)
+  mini_tournament     // Torneo relámpago (un día, partidos cortos) - Ej: Fútbol 7 express
+}
+
+enum TournamentStatus {
+  draft
+  registration
+  in_progress
+  completed
+  cancelled
+}
+
+enum MatchStatus {
+  scheduled
+  in_progress
+  completed
+  postponed
+  cancelled
+}
+
+enum PhaseType {
+  group
+  round_of_16
+  quarter_final
+  semi_final
+  final
+}
+
+enum PlayerPosition {
+  goalkeeper
+  defender
+  midfielder
+  forward
+}
+
+enum TaskStatus {
+  pending
+  in_progress
+  completed
+  overdue
+  rejected
+}
+
+enum FeedbackType {
+  positive
+  improvement
+  technical
+}
+
+enum EvalContext {
+  match
+  training
+  formal
+}
+
+enum StrategyType {
+  offensive
+  defensive
+  counter_attack
+  possession
+}
+
+// ==================== BASE TABLES ====================
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique @db.VarChar(255)
+  passwordHash String   @map("password_hash") @db.VarChar(255)
+  fullName     String   @map("full_name") @db.VarChar(255)
+  phone        String?  @db.VarChar(20)
+  photoUrl     String?  @map("photo_url") @db.VarChar(500)
+  role         UserRole
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
+
+  // Relations
+  coachedTeams              Team[]
+  parentPlayers             ParentPlayer[]
+  notificationPreferences   NotificationPreference?
+  playerEvaluationsGiven    PlayerEvaluation[]       @relation("EvaluatorEvaluations")
+  feedback360Sessions       Feedback360Session[]     @relation("CoachFeedback360")
+  feedback360Evaluators     Feedback360Evaluator[]
+  individualTasks           IndividualTask[]
+  trainingPlans             TrainingPlan[]
+  developmentObjectives     DevelopmentObjective[]
+  personalizedFeedbackGiven PersonalizedFeedback[]
+  progressReports           ProgressReport[]
+  developmentPlans          DevelopmentPlan[]
+  exerciseFavorites         ExerciseFavorite[]
+  notificationLogs          NotificationLog[]
+
+  @@map("users")
+}
+
+model Category {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @unique @db.VarChar(100)
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  teamCategories       TeamCategory[]
+  tournamentCategories TournamentCategory[]
+
+  @@map("categories")
+}
+
+model Team {
+  id                    String   @id @default(uuid()) @db.Uuid
+  name                  String   @unique @db.VarChar(255)
+  badgeUrl              String?  @map("badge_url") @db.VarChar(500)
+  primaryColor          String?  @map("primary_color") @db.VarChar(7)
+  secondaryColor        String?  @map("secondary_color") @db.VarChar(7)
+  city                  String?  @db.VarChar(255)
+  coachId               String?  @map("coach_id") @db.Uuid
+  homeUniformPrimary    String?  @map("home_uniform_primary") @db.VarChar(7)
+  homeUniformSecondary  String?  @map("home_uniform_secondary") @db.VarChar(7)
+  homeUniformDescription String? @map("home_uniform_description")
+  homeUniformImageUrl   String?  @map("home_uniform_image_url") @db.VarChar(500)
+  awayUniformPrimary    String?  @map("away_uniform_primary") @db.VarChar(7)
+  awayUniformSecondary  String?  @map("away_uniform_secondary") @db.VarChar(7)
+  awayUniformDescription String? @map("away_uniform_description")
+  awayUniformImageUrl   String?  @map("away_uniform_image_url") @db.VarChar(500)
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @default(now()) @updatedAt @map("updated_at")
+
+  // Relations
+  coach              User?              @relation(fields: [coachId], references: [id])
+  teamCategories     TeamCategory[]
+  teamPlayers        TeamPlayer[]
+  tournamentTeams    TournamentTeam[]
+  homeMatches        Match[]            @relation("HomeTeam")
+  awayMatches        Match[]            @relation("AwayTeam")
+  matchEvents        MatchEvent[]
+  standings          Standing[]
+  tactics            Tactic[]
+  trainingPlans      TrainingPlan[]
+  individualTasks    IndividualTask[]
+  playerEvaluations  PlayerEvaluation[] @relation("TeamEvaluations")
+  feedback360Sessions Feedback360Session[]
+  developmentObjectives DevelopmentObjective[]
+  personalizedFeedback  PersonalizedFeedback[]
+  progressReports    ProgressReport[]
+  developmentPlans   DevelopmentPlan[]
+  recommendationCache RecommendationCache[]
+
+  @@map("teams")
+}
+
+model TeamCategory {
+  teamId     String   @map("team_id") @db.Uuid
+  categoryId String   @map("category_id") @db.Uuid
+
+  team     Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([teamId, categoryId])
+  @@map("team_categories")
+}
+
+model Player {
+  id        String         @id @default(uuid()) @db.Uuid
+  fullName  String         @map("full_name") @db.VarChar(255)
+  birthDate DateTime       @map("birth_date") @db.Date
+  idNumber  String         @unique @map("id_number") @db.VarChar(50)
+  position  PlayerPosition
+  phone     String?        @db.VarChar(20)
+  email     String?        @db.VarChar(255)
+  photoUrl  String?        @map("photo_url") @db.VarChar(500)
+  userId    String?        @map("user_id") @db.Uuid
+  createdAt DateTime       @default(now()) @map("created_at")
+  updatedAt DateTime       @default(now()) @updatedAt @map("updated_at")
+
+  // Relations
+  teamPlayers        TeamPlayer[]
+  matchEvents        MatchEvent[]
+  suspensions        Suspension[]
+  parentPlayers      ParentPlayer[]
+  playerEvaluations  PlayerEvaluation[]
+  feedback360Sessions Feedback360Session[]
+  taskAssignments    TaskAssignment[]
+  developmentObjectives DevelopmentObjective[]
+  personalizedFeedback  PersonalizedFeedback[]
+  progressReports    ProgressReport[]
+  developmentPlans   DevelopmentPlan[]
+
+  @@map("players")
+}
+
+model TeamPlayer {
+  id           String    @id @default(uuid()) @db.Uuid
+  teamId       String    @map("team_id") @db.Uuid
+  playerId     String    @map("player_id") @db.Uuid
+  jerseyNumber Int       @map("jersey_number")
+  joinedAt     DateTime  @default(now()) @map("joined_at") @db.Date
+  leftAt       DateTime? @map("left_at") @db.Date
+
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, jerseyNumber, leftAt])
+  @@index([teamId])
+  @@index([playerId])
+  @@map("team_players")
+}
+
+model Tournament {
+  id        String           @id @default(uuid()) @db.Uuid
+  name      String           @db.VarChar(255)
+  startDate DateTime         @map("start_date") @db.Date
+  endDate   DateTime         @map("end_date") @db.Date
+  format    TournamentFormat
+  minTeams  Int              @default(2) @map("min_teams")
+  maxTeams  Int              @map("max_teams")
+  status    TournamentStatus @default(draft)
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @default(now()) @updatedAt @map("updated_at")
+
+  // Relations
+  tournamentCategories TournamentCategory[]
+  tournamentTeams      TournamentTeam[]
+  phases               Phase[]
+  matches              Match[]
+  standings            Standing[]
+  suspensions          Suspension[]
+
+  @@map("tournaments")
+}
+
+model TournamentCategory {
+  tournamentId String @map("tournament_id") @db.Uuid
+  categoryId   String @map("category_id") @db.Uuid
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  category   Category   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([tournamentId, categoryId])
+  @@map("tournament_categories")
+}
+
+model TournamentTeam {
+  tournamentId String   @map("tournament_id") @db.Uuid
+  teamId       String   @map("team_id") @db.Uuid
+  registeredAt DateTime @default(now()) @map("registered_at")
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  team       Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@id([tournamentId, teamId])
+  @@map("tournament_teams")
+}
+
+// ==================== MATCHES & STATISTICS ====================
+
+model Phase {
+  id                     String    @id @default(uuid()) @db.Uuid
+  tournamentId           String    @map("tournament_id") @db.Uuid
+  name                   String    @db.VarChar(255)
+  type                   PhaseType
+  status                 String    @default("pending") @db.VarChar(20)
+  phaseOrder             Int       @map("phase_order")
+  classificationCriteria Json?     @map("classification_criteria")
+  createdAt              DateTime  @default(now()) @map("created_at")
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  matches    Match[]
+  standings  Standing[]
+
+  @@map("phases")
+}
+
+model Location {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @db.VarChar(255)
+  address   String
+  latitude  Float?
+  longitude Float?
+  capacity  Int?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  matches Match[]
+
+  @@map("locations")
+}
+
+model Match {
+  id           String      @id @default(uuid()) @db.Uuid
+  tournamentId String      @map("tournament_id") @db.Uuid
+  phaseId      String?     @map("phase_id") @db.Uuid
+  homeTeamId   String      @map("home_team_id") @db.Uuid
+  awayTeamId   String      @map("away_team_id") @db.Uuid
+  locationId   String?     @map("location_id") @db.Uuid
+  dateTime     DateTime    @map("date_time")
+  status       MatchStatus @default(scheduled)
+  homeScore    Int?        @map("home_score")
+  awayScore    Int?        @map("away_score")
+  homeTacticId String?     @map("home_tactic_id") @db.Uuid
+  awayTacticId String?     @map("away_tactic_id") @db.Uuid
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @default(now()) @updatedAt @map("updated_at")
+
+  tournament Tournament  @relation(fields: [tournamentId], references: [id])
+  phase      Phase?      @relation(fields: [phaseId], references: [id])
+  homeTeam   Team        @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  awayTeam   Team        @relation("AwayTeam", fields: [awayTeamId], references: [id])
+  location   Location?   @relation(fields: [locationId], references: [id])
+  events     MatchEvent[]
+
+  @@index([tournamentId])
+  @@index([dateTime])
+  @@index([status])
+  @@map("matches")
+}
+
+model MatchEvent {
+  id        String   @id @default(uuid()) @db.Uuid
+  matchId   String   @map("match_id") @db.Uuid
+  teamId    String?  @map("team_id") @db.Uuid
+  playerId  String?  @map("player_id") @db.Uuid
+  eventType String   @map("event_type") @db.VarChar(20)
+  minute    Int?
+  details   Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  match  Match   @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  team   Team?   @relation(fields: [teamId], references: [id])
+  player Player? @relation(fields: [playerId], references: [id])
+
+  @@index([matchId])
+  @@map("match_events")
+}
+
+model Standing {
+  id             String  @id @default(uuid()) @db.Uuid
+  tournamentId   String  @map("tournament_id") @db.Uuid
+  phaseId        String? @map("phase_id") @db.Uuid
+  teamId         String  @map("team_id") @db.Uuid
+  played         Int     @default(0)
+  won            Int     @default(0)
+  drawn          Int     @default(0)
+  lost           Int     @default(0)
+  goalsFor       Int     @default(0) @map("goals_for")
+  goalsAgainst   Int     @default(0) @map("goals_against")
+  goalDifference Int     @default(0) @map("goal_difference")
+  points         Int     @default(0)
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  phase      Phase?     @relation(fields: [phaseId], references: [id])
+  team       Team       @relation(fields: [teamId], references: [id])
+
+  @@unique([tournamentId, phaseId, teamId])
+  @@index([tournamentId])
+  @@map("standings")
+}
+
+model Suspension {
+  id               String   @id @default(uuid()) @db.Uuid
+  playerId         String   @map("player_id") @db.Uuid
+  tournamentId     String   @map("tournament_id") @db.Uuid
+  reason           String
+  matchesRemaining Int      @map("matches_remaining")
+  isActive         Boolean  @default(true) @map("is_active")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  player     Player     @relation(fields: [playerId], references: [id])
+  tournament Tournament @relation(fields: [tournamentId], references: [id])
+
+  @@index([playerId, isActive])
+  @@map("suspensions")
+}
+
+model Tactic {
+  id              String        @id @default(uuid()) @db.Uuid
+  teamId          String        @map("team_id") @db.Uuid
+  name            String        @db.VarChar(255)
+  formation       String        @db.VarChar(20)
+  strategy        StrategyType?
+  playerPositions Json          @map("player_positions")
+  isPrimary       Boolean       @default(false) @map("is_primary")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @default(now()) @updatedAt @map("updated_at")
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@map("tactics")
+}
+
+model ParentPlayer {
+  id           String @id @default(uuid()) @db.Uuid
+  parentId     String @map("parent_id") @db.Uuid
+  playerId     String @map("player_id") @db.Uuid
+  relationship String @db.VarChar(50)
+
+  parent User   @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([parentId, playerId])
+  @@map("parent_players")
+}
+
+model NotificationPreference {
+  id              String   @id @default(uuid()) @db.Uuid
+  userId          String   @unique @map("user_id") @db.Uuid
+  whatsappEnabled Boolean  @default(true) @map("whatsapp_enabled")
+  emailEnabled    Boolean  @default(true) @map("email_enabled")
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notification_preferences")
+}
+
+// ==================== TRAINING & EVALUATION ====================
+
+model Exercise {
+  id               String    @id @default(uuid()) @db.Uuid
+  title            String    @db.VarChar(255)
+  description      String
+  category         String    @db.VarChar(50)
+  minAge           Int?      @map("min_age")
+  maxAge           Int?      @map("max_age")
+  difficulty       String?   @db.VarChar(20)
+  durationMinutes  Int?      @map("duration_minutes")
+  playersRequired  Int?      @map("players_required")
+  materials        String?
+  diagramUrl       String?   @map("diagram_url") @db.VarChar(500)
+  methodologySource String?  @map("methodology_source") @db.VarChar(100)
+  isSmallSidedGame Boolean   @default(false) @map("is_small_sided_game")
+  gameFormat       String?   @map("game_format") @db.VarChar(10)
+  isExternal       Boolean   @default(false) @map("is_external")
+  cachedAt         DateTime? @map("cached_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  favorites        ExerciseFavorite[]
+  sessionExercises SessionExercise[]
+
+  @@index([category])
+  @@index([minAge, maxAge])
+  @@map("exercises")
+}
+
+model ExerciseFavorite {
+  coachId    String @map("coach_id") @db.Uuid
+  exerciseId String @map("exercise_id") @db.Uuid
+
+  coach    User     @relation(fields: [coachId], references: [id], onDelete: Cascade)
+  exercise Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@id([coachId, exerciseId])
+  @@map("exercise_favorites")
+}
+
+model TrainingPlan {
+  id                String    @id @default(uuid()) @db.Uuid
+  teamId            String    @map("team_id") @db.Uuid
+  coachId           String?   @map("coach_id") @db.Uuid
+  name              String    @db.VarChar(255)
+  targetAgeMin      Int?      @map("target_age_min")
+  targetAgeMax      Int?      @map("target_age_max")
+  level             String?   @db.VarChar(20)
+  objectives        String?
+  startDate         DateTime? @map("start_date") @db.Date
+  endDate           DateTime? @map("end_date") @db.Date
+  isShared          Boolean   @default(false) @map("is_shared")
+  effectivenessNotes String?  @map("effectiveness_notes")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  team     Team              @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  coach    User?             @relation(fields: [coachId], references: [id])
+  sessions TrainingSession[]
+
+  @@map("training_plans")
+}
+
+model TrainingSession {
+  id              String    @id @default(uuid()) @db.Uuid
+  planId          String    @map("plan_id") @db.Uuid
+  sessionDate     DateTime? @map("session_date") @db.Date
+  durationMinutes Int?      @map("duration_minutes")
+  phase           String?   @db.VarChar(20)
+  sessionOrder    Int       @map("session_order")
+  executedAt      DateTime? @map("executed_at")
+  attendance      Json?
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  plan      TrainingPlan      @relation(fields: [planId], references: [id], onDelete: Cascade)
+  exercises SessionExercise[]
+
+  @@map("training_sessions")
+}
+
+model SessionExercise {
+  id                  String  @id @default(uuid()) @db.Uuid
+  sessionId           String  @map("session_id") @db.Uuid
+  exerciseId          String  @map("exercise_id") @db.Uuid
+  exerciseOrder       Int     @map("exercise_order")
+  effectivenessRating Int?    @map("effectiveness_rating")
+  coachNotes          String? @map("coach_notes")
+
+  session  TrainingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  exercise Exercise        @relation(fields: [exerciseId], references: [id])
+
+  @@map("session_exercises")
+}
+
+model PlayerEvaluation {
+  id              String      @id @default(uuid()) @db.Uuid
+  playerId        String      @map("player_id") @db.Uuid
+  evaluatorId     String?     @map("evaluator_id") @db.Uuid
+  teamId          String?     @map("team_id") @db.Uuid
+  context         EvalContext
+  evaluationDate  DateTime    @map("evaluation_date") @db.Date
+  // Technical dimension
+  ballControl     Int?        @map("ball_control")
+  passing         Int?
+  dribbling       Int?
+  shooting        Int?
+  heading         Int?
+  weakFoot        Int?        @map("weak_foot")
+  technicalAvg    Decimal?    @map("technical_avg") @db.Decimal(3, 1)
+  technicalComments String?   @map("technical_comments")
+  // Tactical dimension
+  positioning     Int?
+  gameVision      Int?        @map("game_vision")
+  decisionMaking  Int?        @map("decision_making")
+  systemUnderstanding Int?    @map("system_understanding")
+  tacticalAvg     Decimal?    @map("tactical_avg") @db.Decimal(3, 1)
+  tacticalComments String?    @map("tactical_comments")
+  // Physical dimension
+  speed           Int?
+  endurance       Int?
+  strength        Int?
+  agility         Int?
+  coordination    Int?
+  physicalAvg     Decimal?    @map("physical_avg") @db.Decimal(3, 1)
+  physicalComments String?    @map("physical_comments")
+  // Mental dimension
+  concentration   Int?
+  attitude        Int?
+  leadership      Int?
+  teamwork        Int?
+  resilience      Int?
+  mentalAvg       Decimal?    @map("mental_avg") @db.Decimal(3, 1)
+  mentalComments  String?     @map("mental_comments")
+  // Position-specific
+  positionMetrics Json?       @map("position_metrics")
+  // Overall
+  overallAvg      Decimal?    @map("overall_avg") @db.Decimal(3, 1)
+  topStrengths    Json?       @map("top_strengths")
+  topWeaknesses   Json?       @map("top_weaknesses")
+  isFeedback360   Boolean     @default(false) @map("is_feedback_360")
+  feedback360Id   String?     @map("feedback_360_id") @db.Uuid
+  createdAt       DateTime    @default(now()) @map("created_at")
+
+  player    Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  evaluator User?  @relation("EvaluatorEvaluations", fields: [evaluatorId], references: [id])
+  team      Team?  @relation("TeamEvaluations", fields: [teamId], references: [id])
+
+  personalizedFeedback PersonalizedFeedback[]
+  feedback360Evaluators Feedback360Evaluator[]
+
+  @@index([playerId])
+  @@index([evaluationDate])
+  @@map("player_evaluations")
+}
+
+model Feedback360Session {
+  id        String   @id @default(uuid()) @db.Uuid
+  playerId  String   @map("player_id") @db.Uuid
+  coachId   String   @map("coach_id") @db.Uuid
+  teamId    String   @map("team_id") @db.Uuid
+  status    String   @default("pending") @db.VarChar(20)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  player     Player                @relation(fields: [playerId], references: [id])
+  coach      User                  @relation("CoachFeedback360", fields: [coachId], references: [id])
+  team       Team                  @relation(fields: [teamId], references: [id])
+  evaluators Feedback360Evaluator[]
+
+  @@map("feedback_360_sessions")
+}
+
+model Feedback360Evaluator {
+  id           String    @id @default(uuid()) @db.Uuid
+  sessionId    String    @map("session_id") @db.Uuid
+  evaluatorId  String    @map("evaluator_id") @db.Uuid
+  evaluationId String?   @map("evaluation_id") @db.Uuid
+  status       String    @default("pending") @db.VarChar(20)
+  notifiedAt   DateTime? @map("notified_at")
+
+  session    Feedback360Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  evaluator  User               @relation(fields: [evaluatorId], references: [id])
+  evaluation PlayerEvaluation?  @relation(fields: [evaluationId], references: [id])
+
+  @@map("feedback_360_evaluators")
+}
+
+model IndividualTask {
+  id                 String     @id @default(uuid()) @db.Uuid
+  coachId            String?    @map("coach_id") @db.Uuid
+  teamId             String?    @map("team_id") @db.Uuid
+  title              String     @db.VarChar(255)
+  description        String?
+  taskType           String?    @map("task_type") @db.VarChar(20)
+  deadline           DateTime?  @db.Date
+  completionCriteria String?    @map("completion_criteria")
+  status             TaskStatus @default(pending)
+  createdAt          DateTime   @default(now()) @map("created_at")
+  updatedAt          DateTime   @default(now()) @updatedAt @map("updated_at")
+
+  coach       User?              @relation(fields: [coachId], references: [id])
+  team        Team?              @relation(fields: [teamId], references: [id])
+  assignments TaskAssignment[]
+  personalizedFeedback PersonalizedFeedback[]
+
+  @@index([teamId])
+  @@map("individual_tasks")
+}
+
+model TaskAssignment {
+  id            String     @id @default(uuid()) @db.Uuid
+  taskId        String     @map("task_id") @db.Uuid
+  playerId      String     @map("player_id") @db.Uuid
+  status        TaskStatus @default(pending)
+  playerComments String?   @map("player_comments")
+  coachFeedback String?    @map("coach_feedback")
+  completedAt   DateTime?  @map("completed_at")
+  reviewedAt    DateTime?  @map("reviewed_at")
+
+  task   IndividualTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  player Player         @relation(fields: [playerId], references: [id])
+
+  @@index([playerId])
+  @@map("task_assignments")
+}
+
+model DevelopmentObjective {
+  id           String    @id @default(uuid()) @db.Uuid
+  playerId     String    @map("player_id") @db.Uuid
+  coachId      String?   @map("coach_id") @db.Uuid
+  teamId       String?   @map("team_id") @db.Uuid
+  title        String    @db.VarChar(255)
+  description  String?
+  targetValue  Decimal?  @map("target_value") @db.Decimal(3, 1)
+  currentValue Decimal?  @map("current_value") @db.Decimal(3, 1)
+  metricName   String?   @map("metric_name") @db.VarChar(100)
+  startDate    DateTime? @map("start_date") @db.Date
+  targetDate   DateTime? @map("target_date") @db.Date
+  status       String    @default("active") @db.VarChar(20)
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  coach  User?  @relation(fields: [coachId], references: [id])
+  team   Team?  @relation(fields: [teamId], references: [id])
+
+  @@map("development_objectives")
+}
+
+model PersonalizedFeedback {
+  id                  String       @id @default(uuid()) @db.Uuid
+  coachId             String?      @map("coach_id") @db.Uuid
+  playerId            String       @map("player_id") @db.Uuid
+  teamId              String?      @map("team_id") @db.Uuid
+  feedbackType        FeedbackType @map("feedback_type")
+  message             String
+  relatedEvaluationId String?      @map("related_evaluation_id") @db.Uuid
+  relatedTaskId       String?      @map("related_task_id") @db.Uuid
+  sentToParent        Boolean      @default(false) @map("sent_to_parent")
+  createdAt           DateTime     @default(now()) @map("created_at")
+
+  coach      User?             @relation(fields: [coachId], references: [id])
+  player     Player            @relation(fields: [playerId], references: [id])
+  team       Team?             @relation(fields: [teamId], references: [id])
+  evaluation PlayerEvaluation? @relation(fields: [relatedEvaluationId], references: [id])
+  task       IndividualTask?   @relation(fields: [relatedTaskId], references: [id])
+
+  @@map("personalized_feedback")
+}
+
+model ProgressReport {
+  id          String    @id @default(uuid()) @db.Uuid
+  playerId    String    @map("player_id") @db.Uuid
+  coachId     String?   @map("coach_id") @db.Uuid
+  teamId      String?   @map("team_id") @db.Uuid
+  periodStart DateTime  @map("period_start") @db.Date
+  periodEnd   DateTime  @map("period_end") @db.Date
+  reportType  String?   @map("report_type") @db.VarChar(20)
+  content     Json
+  pdfUrl      String?   @map("pdf_url") @db.VarChar(500)
+  sentAt      DateTime? @map("sent_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  player Player @relation(fields: [playerId], references: [id])
+  coach  User?  @relation(fields: [coachId], references: [id])
+  team   Team?  @relation(fields: [teamId], references: [id])
+
+  @@map("progress_reports")
+}
+
+model DevelopmentPlan {
+  id                   String   @id @default(uuid()) @db.Uuid
+  playerId             String   @map("player_id") @db.Uuid
+  coachId              String?  @map("coach_id") @db.Uuid
+  teamId               String?  @map("team_id") @db.Uuid
+  focusAreas           Json?    @map("focus_areas")
+  recommendedExercises Json?    @map("recommended_exercises")
+  evaluationSchedule   Json?    @map("evaluation_schedule")
+  status               String   @default("active") @db.VarChar(20)
+  parentComments       String?  @map("parent_comments")
+  playerComments       String?  @map("player_comments")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @default(now()) @updatedAt @map("updated_at")
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  coach  User?  @relation(fields: [coachId], references: [id])
+  team   Team?  @relation(fields: [teamId], references: [id])
+
+  @@map("development_plans")
+}
+
+model RecommendationCache {
+  id              String   @id @default(uuid()) @db.Uuid
+  teamId          String?  @map("team_id") @db.Uuid
+  category        String?  @db.VarChar(50)
+  avgAge          Decimal? @map("avg_age") @db.Decimal(4, 1)
+  recommendations Json
+  source          String?  @db.VarChar(100)
+  cachedAt        DateTime @default(now()) @map("cached_at")
+  expiresAt       DateTime @map("expires_at")
+
+  team Team? @relation(fields: [teamId], references: [id])
+
+  @@map("recommendation_cache")
+}
+
+model NotificationLog {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String?   @map("user_id") @db.Uuid
+  channel   String    @db.VarChar(20)
+  subject   String?   @db.VarChar(255)
+  content   String?
+  status    String    @default("pending") @db.VarChar(20)
+  sentAt    DateTime? @map("sent_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("notification_log")
+}
+
+model AuditLog {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String?  @map("user_id") @db.Uuid
+  action       String   @db.VarChar(100)
+  resourceType String?  @map("resource_type") @db.VarChar(50)
+  resourceId   String?  @map("resource_id") @db.Uuid
+  details      Json?
+  ipAddress    String?  @map("ip_address") @db.VarChar(45)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("audit_log")
+}
