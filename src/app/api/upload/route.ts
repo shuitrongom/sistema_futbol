@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, handleAuthError } from "@/lib/auth";
-import { writeFile, mkdir } from "fs/promises";
-import { existsSync } from "fs";
-import path from "path";
+import { supabase } from "@/lib/supabase";
 import crypto from "crypto";
 
 // Max file size: 5MB
 const MAX_SIZE = 5 * 1024 * 1024;
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+
+const BUCKET_NAME = "uploads";
 
 export async function POST(req: NextRequest) {
   try {
@@ -38,23 +38,34 @@ export async function POST(req: NextRequest) {
     // Sanitize folder name
     const safeFolder = folder.replace(/[^a-zA-Z0-9-_]/g, "");
 
-    // Create upload directory
-    const uploadDir = path.join(process.cwd(), "public", "uploads", safeFolder);
-    if (!existsSync(uploadDir)) {
-      await mkdir(uploadDir, { recursive: true });
-    }
-
     // Generate unique filename
     const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
     const uniqueName = `${crypto.randomUUID()}.${ext}`;
-    const filePath = path.join(uploadDir, uniqueName);
+    const filePath = `${safeFolder}/${uniqueName}`;
 
-    // Write file
+    // Upload to Supabase Storage
     const bytes = await file.arrayBuffer();
-    await writeFile(filePath, Buffer.from(bytes));
+    const { error } = await supabase.storage
+      .from(BUCKET_NAME)
+      .upload(filePath, Buffer.from(bytes), {
+        contentType: file.type,
+        upsert: false,
+      });
 
-    // Return the public URL
-    const url = `/uploads/${safeFolder}/${uniqueName}`;
+    if (error) {
+      console.error("[Upload] Supabase storage error:", error.message);
+      return NextResponse.json(
+        { error: "Error al subir archivo" },
+        { status: 500 }
+      );
+    }
+
+    // Get public URL
+    const { data: urlData } = supabase.storage
+      .from(BUCKET_NAME)
+      .getPublicUrl(filePath);
+
+    const url = urlData.publicUrl;
 
     return NextResponse.json({ url, filename: uniqueName }, { status: 201 });
   } catch (error) {
