@@ -28,7 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { User, Plus, UserMinus, Search, Camera, Loader2, X, UserPlus } from "lucide-react";
+import { User, Plus, UserMinus, Search, Camera, Loader2, X, UserPlus, Pencil } from "lucide-react";
 
 const positionLabels: Record<string, string> = {
   goalkeeper: "Portero",
@@ -306,6 +306,78 @@ export default function RosterPage() {
       if (res.ok) await fetchRoster();
     } catch {
       // ignore
+    }
+  };
+
+  // Edit player state
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editPlayer, setEditPlayer] = useState({
+    id: "",
+    fullName: "",
+    birthDate: "",
+    position: "",
+    phone: "",
+    email: "",
+  });
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  const openEditDialog = (r: RosterPlayer) => {
+    setEditPlayer({
+      id: r.player.id,
+      fullName: r.player.fullName,
+      birthDate: r.player.birthDate.split("T")[0],
+      position: r.player.position,
+      phone: "",
+      email: "",
+    });
+    setEditError(null);
+    setEditDialogOpen(true);
+    // Fetch full player data for phone/email
+    fetch(`/api/players/${r.player.id}`)
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        if (data) {
+          setEditPlayer((prev) => ({
+            ...prev,
+            phone: data.phone ?? "",
+            email: data.email ?? "",
+          }));
+        }
+      })
+      .catch(() => {});
+  };
+
+  const handleEditSave = async () => {
+    if (!editPlayer.fullName || !editPlayer.birthDate || !editPlayer.position) {
+      setEditError("Nombre, fecha de nacimiento y posición son obligatorios");
+      return;
+    }
+    setEditSaving(true);
+    setEditError(null);
+    try {
+      const res = await fetch(`/api/players/${editPlayer.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fullName: editPlayer.fullName,
+          birthDate: editPlayer.birthDate,
+          position: editPlayer.position,
+          phone: editPlayer.phone || null,
+          email: editPlayer.email || null,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        setEditError(data.error ?? "Error al actualizar jugador");
+        return;
+      }
+      setEditDialogOpen(false);
+      await fetchRoster();
+    } catch {
+      setEditError("Error de conexión");
+    } finally {
+      setEditSaving(false);
     }
   };
 
@@ -613,7 +685,12 @@ export default function RosterPage() {
                                 )}
                               </div>
                             </div>
-                            <span className="font-medium text-sm">{r.player.fullName}</span>
+                            <span
+                              className="font-medium text-sm cursor-pointer hover:text-primary hover:underline transition-colors"
+                              onClick={() => openEditDialog(r)}
+                            >
+                              {r.player.fullName}
+                            </span>
                           </div>
                         </TableCell>
                         <TableCell>
@@ -623,14 +700,24 @@ export default function RosterPage() {
                         </TableCell>
                         <TableCell className="text-sm">{calcAge(r.player.birthDate)} años</TableCell>
                         <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                            onClick={() => handleRemove(r.player.id, r.player.fullName)}
-                          >
-                            <UserMinus className="size-4" />
-                          </Button>
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-muted-foreground hover:text-primary hover:bg-primary/10"
+                              onClick={() => openEditDialog(r)}
+                            >
+                              <Pencil className="size-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                              onClick={() => handleRemove(r.player.id, r.player.fullName)}
+                            >
+                              <UserMinus className="size-4" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -640,6 +727,74 @@ export default function RosterPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Edit Player Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Editar Jugador</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {editError && <p className="text-sm text-red-500 bg-red-50 p-2 rounded">{editError}</p>}
+            <div>
+              <Label>Nombre Completo *</Label>
+              <Input
+                value={editPlayer.fullName}
+                onChange={(e) => setEditPlayer({ ...editPlayer, fullName: e.target.value })}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Fecha de Nacimiento *</Label>
+                <Input
+                  type="date"
+                  value={editPlayer.birthDate}
+                  onChange={(e) => setEditPlayer({ ...editPlayer, birthDate: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label>Posición *</Label>
+                <Select value={editPlayer.position} onValueChange={(v) => setEditPlayer({ ...editPlayer, position: v })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="goalkeeper">Portero</SelectItem>
+                    <SelectItem value="defender">Defensa</SelectItem>
+                    <SelectItem value="midfielder">Mediocampista</SelectItem>
+                    <SelectItem value="forward">Delantero</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Teléfono</Label>
+                <Input
+                  value={editPlayer.phone}
+                  onChange={(e) => setEditPlayer({ ...editPlayer, phone: e.target.value })}
+                  placeholder="Opcional"
+                />
+              </div>
+              <div>
+                <Label>Email</Label>
+                <Input
+                  type="email"
+                  value={editPlayer.email}
+                  onChange={(e) => setEditPlayer({ ...editPlayer, email: e.target.value })}
+                  placeholder="Opcional"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setEditDialogOpen(false)}>Cancelar</Button>
+              <Button onClick={handleEditSave} disabled={editSaving}>
+                {editSaving ? "Guardando..." : "Guardar Cambios"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Hidden file input shared across all player photo uploads */}
       <input
