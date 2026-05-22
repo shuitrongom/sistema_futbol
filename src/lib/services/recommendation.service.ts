@@ -1,4 +1,5 @@
 import prisma from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 import redis from "@/lib/redis";
 
 // ─── Constants ───
@@ -364,7 +365,7 @@ async function saveDbCachedRecommendation(teamId: string, result: Recommendation
         teamId,
         category: categories.join(", "),
         avgAge,
-        recommendations: result as unknown as Record<string, unknown>,
+        recommendations: result as unknown as Prisma.InputJsonValue,
         source: "local",
         expiresAt,
       },

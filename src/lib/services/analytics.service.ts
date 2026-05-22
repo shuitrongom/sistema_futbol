@@ -388,12 +388,13 @@ export async function getPlayerRankings(
   });
 
   // Latest per player
+  type EvalRow = { playerId: string; player: { fullName: string; position: string }; [key: string]: unknown };
   const latestByPlayer = new Map<string, { playerId: string; score: number; fullName: string; position: string }>();
-  for (const ev of evaluations) {
+  for (const ev of evaluations as unknown as EvalRow[]) {
     if (!latestByPlayer.has(ev.playerId)) {
       latestByPlayer.set(ev.playerId, {
         playerId: ev.playerId,
-        score: Number((ev as Record<string, unknown>)[field] ?? 0),
+        score: Number(ev[field] ?? 0),
         fullName: ev.player.fullName,
         position: ev.player.position,
       });

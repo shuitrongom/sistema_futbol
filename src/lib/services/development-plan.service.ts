@@ -1,4 +1,5 @@
 import prisma from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 
 // ─── Mapping: evaluation weakness keys → exercise categories ───
 
@@ -178,9 +179,9 @@ export async function createDevelopmentPlan(data: {
       playerId: data.playerId,
       coachId: data.coachId,
       teamId: data.teamId,
-      focusAreas: data.focusAreas as unknown as Record<string, unknown>[],
-      recommendedExercises: data.recommendedExercises as unknown as Record<string, unknown>[],
-      evaluationSchedule: schedule as unknown as Record<string, unknown>[],
+      focusAreas: data.focusAreas as unknown as Prisma.InputJsonValue,
+      recommendedExercises: data.recommendedExercises as unknown as Prisma.InputJsonValue,
+      evaluationSchedule: schedule as unknown as Prisma.InputJsonValue,
       status: "active",
     },
     include: {

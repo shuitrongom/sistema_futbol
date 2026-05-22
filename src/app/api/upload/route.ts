@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, handleAuthError } from "@/lib/auth";
-import { supabase } from "@/lib/supabase";
+import { getSupabase } from "@/lib/supabase";
 import crypto from "crypto";
 
 // Max file size: 5MB
@@ -45,6 +45,8 @@ export async function POST(req: NextRequest) {
 
     // Upload to Supabase Storage
     const bytes = await file.arrayBuffer();
+    const supabase = getSupabase();
+
     const { error } = await supabase.storage
       .from(BUCKET_NAME)
       .upload(filePath, Buffer.from(bytes), {

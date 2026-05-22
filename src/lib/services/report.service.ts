@@ -1,4 +1,5 @@
 import prisma from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 
 // ─── Types ───
 
@@ -113,7 +114,7 @@ export async function generateReport(data: GenerateReportInput, coachId: string)
       periodStart,
       periodEnd,
       reportType: data.reportType,
-      content: content as unknown as Record<string, unknown>,
+      content: content as unknown as Prisma.InputJsonValue,
     },
     include: {
       player: { select: { id: true, fullName: true, position: true } },

@@ -40,19 +40,7 @@ type ResultNotificationParams = { score: string; stats: string };
 type TaskAssignedWhatsAppParams = { taskTitle: string; deadline: string };
 
 function whatsappTemplate(
-  template: "match_reminder",
-  params: MatchReminderParams
-): string;
-function whatsappTemplate(
-  template: "result_notification",
-  params: ResultNotificationParams
-): string;
-function whatsappTemplate(
-  template: "task_assigned",
-  params: TaskAssignedWhatsAppParams
-): string;
-function whatsappTemplate(
-  template: string,
+  template: "match_reminder" | "result_notification" | "task_assigned",
   params: Record<string, string>
 ): string {
   switch (template) {

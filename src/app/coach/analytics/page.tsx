@@ -495,7 +495,7 @@ export default function CoachAnalyticsPage() {
                       border: "1px solid #e5e7eb",
                       fontSize: "12px",
                     }}
-                    formatter={(value: number | string | undefined, name: string) => {
+                    formatter={(value, name) => {
                       if (name === "Efectividad") return [value, name];
                       return [value, name];
                     }}

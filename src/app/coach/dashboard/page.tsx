@@ -122,7 +122,7 @@ interface ObjectiveRecord {
 }
 
 interface AlertItem {
-  type: "overdue" | "unevaluated" | "objective";
+  type: "overdue" | "unevaluated" | "objective" | "evaluation_reminder";
   icon: React.ReactNode;
   message: string;
   color: string;
