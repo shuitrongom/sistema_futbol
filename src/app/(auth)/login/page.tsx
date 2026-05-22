@@ -8,7 +8,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Trophy, LogIn, Loader2 } from "lucide-react";
+import { Trophy, LogIn, Loader2, Eye, EyeOff } from "lucide-react";
 
 type LoginFormData = { email: string; password: string };
 
@@ -16,6 +16,7 @@ export default function LoginPage() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const { register, handleSubmit, formState: { errors } } = useForm<LoginFormData>();
 
   const onSubmit = async (data: LoginFormData) => {
@@ -81,9 +82,19 @@ export default function LoginPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="password" className="text-white/60 text-sm">Contraseña</Label>
-              <Input id="password" type="password" placeholder="••••••••"
-                className="bg-white/[0.05] border-white/10 text-white placeholder:text-white/20 h-11 rounded-xl focus-visible:ring-[#C1D82F]/50 focus-visible:border-[#C1D82F]/30"
-                {...register("password", { required: "Contraseña es requerida" })} />
+              <div className="relative">
+                <Input id="password" type={showPassword ? "text" : "password"} placeholder="••••••••"
+                  className="bg-white/[0.05] border-white/10 text-white placeholder:text-white/20 h-11 rounded-xl focus-visible:ring-[#C1D82F]/50 focus-visible:border-[#C1D82F]/30 pr-11"
+                  {...register("password", { required: "Contraseña es requerida" })} />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 transition-colors"
+                  aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                >
+                  {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                </button>
+              </div>
               {errors.password && <p className="text-[#EB3525] text-xs">{errors.password.message}</p>}
             </div>
             <Button type="submit" disabled={isLoading}
