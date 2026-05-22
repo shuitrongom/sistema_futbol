@@ -38,58 +38,58 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0d1117] px-4 relative overflow-hidden">
+    <div className="min-h-[100dvh] flex items-center justify-center bg-[#0d1117] px-4 py-8 relative overflow-hidden">
       {/* Background */}
-      <div className="absolute inset-0">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[#2B8B41] rounded-full opacity-[0.06] blur-[150px]" />
-        <div className="absolute top-1/3 right-1/4 w-[300px] h-[300px] bg-[#C1D82F] rounded-full opacity-[0.04] blur-[120px]" />
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] sm:w-[600px] h-[400px] sm:h-[600px] bg-[#2B8B41] rounded-full opacity-[0.06] blur-[150px]" />
+        <div className="absolute top-1/3 right-1/4 w-[200px] sm:w-[300px] h-[200px] sm:h-[300px] bg-[#C1D82F] rounded-full opacity-[0.04] blur-[120px]" />
       </div>
-      <div className="absolute inset-0 opacity-[0.02]" style={{ backgroundImage: "linear-gradient(rgba(193,216,47,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(193,216,47,0.3) 1px, transparent 1px)", backgroundSize: "60px 60px" }} />
+      <div className="absolute inset-0 opacity-[0.02] pointer-events-none" style={{ backgroundImage: "linear-gradient(rgba(193,216,47,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(193,216,47,0.3) 1px, transparent 1px)", backgroundSize: "60px 60px" }} />
       {/* Top gradient line */}
       <div className="absolute top-0 left-0 right-0 h-[2px]" style={{ background: "linear-gradient(90deg, #EB3525, #C1D82F, #2B8B41, #EB3525)", backgroundSize: "200% 100%", animation: "gradientSlide 3s linear infinite" }} />
 
-      <div className="relative w-full max-w-md">
+      <div className="relative w-full max-w-[360px] sm:max-w-md mx-auto">
         {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="size-14 rounded-2xl bg-gradient-to-br from-[#C1D82F] to-[#2B8B41] flex items-center justify-center mx-auto mb-4 shadow-lg shadow-[#C1D82F]/20">
-            <Trophy className="size-7 text-[#1a1f36]" />
+        <div className="text-center mb-6 sm:mb-8">
+          <div className="size-12 sm:size-14 rounded-2xl bg-gradient-to-br from-[#C1D82F] to-[#2B8B41] flex items-center justify-center mx-auto mb-3 sm:mb-4 shadow-lg shadow-[#C1D82F]/20">
+            <Trophy className="size-6 sm:size-7 text-[#1a1f36]" />
           </div>
           <div className="flex items-baseline justify-center gap-1.5">
-            <span className="text-[#C1D82F] font-extrabold text-2xl tracking-tight">LIGA</span>
-            <span className="text-white font-bold text-2xl tracking-tight">MX</span>
+            <span className="text-[#C1D82F] font-extrabold text-xl sm:text-2xl tracking-tight">LIGA</span>
+            <span className="text-white font-bold text-xl sm:text-2xl tracking-tight">MX</span>
           </div>
         </div>
 
         {/* Card */}
-        <div className="rounded-2xl border border-[#C1D82F]/10 bg-[#1a1f36]/80 backdrop-blur-xl p-8">
-          <div className="text-center mb-6">
-            <h1 className="text-xl font-bold text-white">Iniciar Sesión</h1>
-            <p className="text-white/40 text-sm mt-1">Accede a tu cuenta</p>
+        <div className="rounded-2xl border border-[#C1D82F]/10 bg-[#1a1f36]/80 backdrop-blur-xl p-5 sm:p-8">
+          <div className="text-center mb-5 sm:mb-6">
+            <h1 className="text-lg sm:text-xl font-bold text-white">Iniciar Sesión</h1>
+            <p className="text-white/40 text-xs sm:text-sm mt-1">Accede a tu cuenta</p>
           </div>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 sm:space-y-5">
             {error && (
-              <div className="p-3 rounded-xl bg-[#EB3525]/10 border border-[#EB3525]/20 text-[#EB3525] text-sm text-center">
+              <div className="p-3 rounded-xl bg-[#EB3525]/10 border border-[#EB3525]/20 text-[#EB3525] text-xs sm:text-sm text-center">
                 {error}
               </div>
             )}
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-white/60 text-sm">Email</Label>
-              <Input id="email" type="email" placeholder="correo@ejemplo.com"
-                className="bg-white/[0.05] border-white/10 text-white placeholder:text-white/20 h-11 rounded-xl focus-visible:ring-[#C1D82F]/50 focus-visible:border-[#C1D82F]/30"
+            <div className="space-y-1.5 sm:space-y-2">
+              <Label htmlFor="email" className="text-white/60 text-xs sm:text-sm">Email</Label>
+              <Input id="email" type="email" placeholder="correo@ejemplo.com" autoComplete="email"
+                className="bg-white/[0.05] border-white/10 text-white placeholder:text-white/20 h-10 sm:h-11 rounded-xl focus-visible:ring-[#C1D82F]/50 focus-visible:border-[#C1D82F]/30 text-sm"
                 {...register("email", { required: "Email es requerido" })} />
               {errors.email && <p className="text-[#EB3525] text-xs">{errors.email.message}</p>}
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-white/60 text-sm">Contraseña</Label>
+            <div className="space-y-1.5 sm:space-y-2">
+              <Label htmlFor="password" className="text-white/60 text-xs sm:text-sm">Contraseña</Label>
               <div className="relative">
-                <Input id="password" type={showPassword ? "text" : "password"} placeholder="••••••••"
-                  className="bg-white/[0.05] border-white/10 text-white placeholder:text-white/20 h-11 rounded-xl focus-visible:ring-[#C1D82F]/50 focus-visible:border-[#C1D82F]/30 pr-11"
+                <Input id="password" type={showPassword ? "text" : "password"} placeholder="••••••••" autoComplete="current-password"
+                  className="bg-white/[0.05] border-white/10 text-white placeholder:text-white/20 h-10 sm:h-11 rounded-xl focus-visible:ring-[#C1D82F]/50 focus-visible:border-[#C1D82F]/30 pr-11 text-sm"
                   {...register("password", { required: "Contraseña es requerida" })} />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 transition-colors p-1"
                   aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
                 >
                   {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
@@ -98,10 +98,10 @@ export default function LoginPage() {
               {errors.password && <p className="text-[#EB3525] text-xs">{errors.password.message}</p>}
             </div>
             <Button type="submit" disabled={isLoading}
-              className="w-full bg-[#C1D82F] hover:bg-[#d4e84a] text-[#1a1f36] font-bold h-11 rounded-full shadow-lg shadow-[#C1D82F]/20 hover:shadow-[#C1D82F]/40 transition-all border-0 text-sm uppercase tracking-wider">
+              className="w-full bg-[#C1D82F] hover:bg-[#d4e84a] text-[#1a1f36] font-bold h-10 sm:h-11 rounded-full shadow-lg shadow-[#C1D82F]/20 hover:shadow-[#C1D82F]/40 transition-all border-0 text-xs sm:text-sm uppercase tracking-wider">
               {isLoading ? <Loader2 className="size-4 animate-spin" /> : <><LogIn className="size-4 mr-2" />Iniciar Sesión</>}
             </Button>
-            <p className="text-center text-sm text-white/30">
+            <p className="text-center text-xs sm:text-sm text-white/30">
               ¿No tienes cuenta?{" "}
               <Link href="/register" className="text-[#C1D82F] hover:text-[#d4e84a] font-medium transition-colors">Registrarse</Link>
             </p>
