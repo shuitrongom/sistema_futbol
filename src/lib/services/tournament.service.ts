@@ -1,11 +1,11 @@
 import prisma from "@/lib/prisma";
-import type { TournamentStatus } from "@prisma/client";
+import type { TournamentStatus, TournamentFormat } from "@prisma/client";
 
 export interface CreateTournamentInput {
   name: string;
   startDate: string;
   endDate: string;
-  format: "league" | "knockout" | "group_knockout";
+  format: TournamentFormat;
   minTeams?: number;
   maxTeams: number;
   categoryIds: string[];
@@ -15,7 +15,7 @@ export interface UpdateTournamentInput {
   name?: string;
   startDate?: string;
   endDate?: string;
-  format?: "league" | "knockout" | "group_knockout";
+  format?: TournamentFormat;
   minTeams?: number;
   maxTeams?: number;
   status?: TournamentStatus;
